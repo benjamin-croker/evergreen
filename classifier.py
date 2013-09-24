@@ -9,15 +9,20 @@ def load_data(fileName):
     return pd.read_table(fileName)
 
 def investigate(trainDF):
-    # print the type of data for each column, and the top 5 value counts
-    for c in trainDF.columns:
-        print("--Column: {}--".format(c))
-        print("Type: {}".format(trainDF[c].dtype))
+    # order by COV of value counts
+    cols = [(c, trainDF[c], trainDF[c].value_counts(),
+            trainDF[c].value_counts().std()/trainDF[c].value_counts().mean())
+            for c in trainDF.columns]
+    cols = sorted(cols, key=lambda x: x[3])
+    for col in cols:
+        print("-----\nVariable: {}, COV of value counts: {}".format(
+            col[0], col[3]))
+        
+        print("Examples:")
+        print(col[1][:5])
 
-        valCounts = trainDF[c].value_counts()
-        print("Value Counts: ({} catagories, COV={})".format(valCounts.size,
-                valCounts.std()/valCounts.mean()))
-        print(trainDF[c].value_counts()[:5])
+        print("Value Counts (catagories: {})".format(col[2].size))
+        print(col[2][:5])
 
 if __name__ == "__main__":
     trainDF = load_data(os.path.join("data", "train.tsv"))
