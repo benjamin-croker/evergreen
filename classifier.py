@@ -4,11 +4,35 @@ import matplotlib.pyplot as plt
 
 import os
 
+# column categories and transforms
+id_cols = ["url", "urlid"]
+label_cols = ["label"]
+text_cols = ["boilerplate"]
+
+category_cols = ["alchemy_category", "is_news", "news_front_page", "lengthyLinkDomain"]
+numeric_cols = ["alchemy_category_score", "avglinksize", "commonlinkratio_1", "commonlinkratio_2",
+        "commonlinkratio_3", "commonlinkratio_4", "compression_ratio", "frameTagRatio", "html_ratio",
+        "image_ratio", "linkwordscore", "non_markup_alphanum_characters", "numberOfLinks",
+        "numwords_in_url", "parametrizedLinkRatio", "spelling_errors_ratio"]
+# these have too many blank values
+excluded_cols = ["framebased", "hasDomainLink", "embed_ratio"]
+
+replacements = {
+    "is_news": ("?", 0),
+    # not sure if the below is a good idea. It should be ok, since it's a category
+    "news_front_page": ("?", -1)
+}
+
 def load_data(fileName):
     print("loading {}".format(fileName))
-    return pd.read_table(fileName)
+    df = pd.read_table(fileName) 
+    for k in replacements:
+        df[k] = df[k].replace(*replacements[k])
 
-def investigate(trainDF):
+    return df
+
+
+def investigate(trainDF, print_examples=False, print_counts=False):
     # order by COV of value counts
     cols = [(c, trainDF[c], trainDF[c].value_counts(),
             trainDF[c].value_counts().std()/trainDF[c].value_counts().mean())
@@ -17,14 +41,18 @@ def investigate(trainDF):
     for col in cols:
         print("-----\nVariable: {}, COV of value counts: {}".format(
             col[0], col[3]))
+
+        if np.isreal(col[1][0]):
+            print("Mean: {}, STD: {}".format(col[1].mean(), col[1].std()))
         
-        print("Examples:")
-        print(col[1][:5])
+        if print_examples:
+            print("Examples:")
+            print(col[1][:5])
 
         print("Value Counts (catagories: {})".format(col[2].size))
-        print(col[2][:5])
+        if print_counts: print(col[2][:5])
 
 if __name__ == "__main__":
     trainDF = load_data(os.path.join("data", "train.tsv"))
 
-    investigate(trainDF)
+    investigate(trainDF, print_counts=True)
