@@ -1,8 +1,13 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
 import os
+
+from sklearn import metrics,preprocessing,cross_validation
+from sklearn.feature_extraction.text import TfidfVectorizer
+import sklearn.linear_model as lm
+
+from models import TFIDF
 
 # column categories and transforms
 id_cols = ["url", "urlid"]
@@ -53,6 +58,11 @@ def investigate(trainDF, print_examples=False, print_counts=False):
         if print_counts: print(col[2][:5])
 
 if __name__ == "__main__":
-    trainDF = load_data(os.path.join("data", "train.tsv"))
 
-    investigate(trainDF, print_counts=True)
+    trainDF = load_data(os.path.join("data", "train.tsv"))
+    testDF = load_data(os.path.join("data", "test.tsv"))
+
+    tfidf_cl = TFIDF(trainDF, testDF)
+
+    print tfidf_cl.eval()
+

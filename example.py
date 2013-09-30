@@ -52,6 +52,10 @@ X_all = tfv.transform(X_all)
 X = X_all[:lentrain]
 X_test = X_all[lentrain:]
 
+print X
+print y
+print len(y)
+
 print "20 Fold CV Score: ", np.mean(cross_validation.cross_val_score(rd, X, y, cv=20,
         scoring="roc_auc"))
 
