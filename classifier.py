@@ -2,10 +2,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
+import cPickle
 
 from sklearn import metrics, preprocessing, cross_validation
-from sklearn.feature_extraction.text import TfidfVectorizer
-import sklearn.linear_model as lm
 from sklearn.decomposition import PCA
 
 from models import TFIDF, NumerLog, NumerSVC
@@ -17,9 +16,9 @@ text_cols = ["boilerplate"]
 
 category_cols = ["alchemy_category", "is_news", "news_front_page", "lengthyLinkDomain"]
 numeric_cols = ["avglinksize", "commonlinkratio_1", "commonlinkratio_2",
-        "commonlinkratio_3", "commonlinkratio_4", "compression_ratio", "frameTagRatio", "html_ratio",
-        "image_ratio", "linkwordscore", "non_markup_alphanum_characters", "numberOfLinks",
-        "numwords_in_url", "parametrizedLinkRatio", "spelling_errors_ratio"]
+                "commonlinkratio_3", "commonlinkratio_4", "compression_ratio", "frameTagRatio", "html_ratio",
+                "image_ratio", "linkwordscore", "non_markup_alphanum_characters", "numberOfLinks",
+                "numwords_in_url", "parametrizedLinkRatio", "spelling_errors_ratio"]
 # these have too many blank values
 excluded_cols = ["framebased", "hasDomainLink", "embed_ratio", "alchemy_category_score"]
 
@@ -29,9 +28,10 @@ replacements = {
     "news_front_page": ("?", -1)
 }
 
+
 def load_data(fileName):
     print("loading {}".format(fileName))
-    df = pd.read_table(fileName) 
+    df = pd.read_table(fileName)
     for k in replacements:
         df[k] = df[k].replace(*replacements[k])
 
@@ -41,7 +41,7 @@ def load_data(fileName):
 def investigate(trainDF, print_examples=False, print_counts=False):
     # order by COV of value counts
     cols = [(c, trainDF[c], trainDF[c].value_counts(),
-            trainDF[c].value_counts().std()/trainDF[c].value_counts().mean())
+             trainDF[c].value_counts().std() / trainDF[c].value_counts().mean())
             for c in trainDF.columns]
     cols = sorted(cols, key=lambda x: x[3])
     for col in cols:
@@ -50,7 +50,7 @@ def investigate(trainDF, print_examples=False, print_counts=False):
 
         if np.isreal(col[1][0]):
             print("Mean: {}, STD: {}".format(col[1].mean(), col[1].std()))
-        
+
         if print_examples:
             print("Examples:")
             print(col[1][:5])
@@ -71,19 +71,44 @@ def investigate(trainDF, print_examples=False, print_counts=False):
     plt.show()
 
 
-if __name__ == "__main__":
+def cache_model(model, file_name):
+    with open(os.path.join("cache", file_name), "wb") as f:
+        print("Caching model {}".format(file_name))
+        cPickle.dump(model, f)
 
+
+def load_model(file_name):
+    with open(os.path.join("cache", file_name)) as f:
+        print("Loading model {}".format(file_name))
+        return cPickle.load(f)
+
+
+def gen_models():
     trainDF = load_data(os.path.join("data", "train.tsv"))
     testDF = load_data(os.path.join("data", "test.tsv"))
 
-    # tfidf_cl = TFIDF(trainDF, testDF)
-    # print(tfidf_cl.eval())
+    tfidf_cl = TFIDF(trainDF, testDF)
+    cache_model(tfidf_cl, "tfidf.pkl")
 
-    numlog_cl = NumerLog(trainDF, testDF)
-    print(numlog_cl.eval())
+if __name__ == "__main__":
 
-    numsvc_cl = NumerSVC(trainDF, testDF)
-    print(numsvc_cl.eval())
+    tfidf_cl = load_model("tfidf.pkl")
 
-    # investigate(trainDF)
+    tfidf_cl.init_one_fold(10)
+
+    kf = cross_validation.KFold(n=tfidf_cl.train_size(), n_folds=10)
+
+    i = 0
+    for train_indices, test_indices in kf:
+        tfidf_cl.one_fold_eval(train_indices, test_indices, i)
+        i += 1
+
+    print(tfidf_cl.last_eval())
+    cache_model(tfidf_cl, "tfidf.pkl")
+
+    tfidf_cl = None
+
+    tfidf_cl = load_model("tfidf.pkl")
+    print(tfidf_cl.last_eval())
+
 
