@@ -3,11 +3,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
-from sklearn import metrics,preprocessing,cross_validation
+from sklearn import metrics, preprocessing, cross_validation
 from sklearn.feature_extraction.text import TfidfVectorizer
 import sklearn.linear_model as lm
+from sklearn.decomposition import PCA
 
-from models import TFIDF
+from models import TFIDF, NumerLog, NumerSVC
 
 # column categories and transforms
 id_cols = ["url", "urlid"]
@@ -15,12 +16,12 @@ label_cols = ["label"]
 text_cols = ["boilerplate"]
 
 category_cols = ["alchemy_category", "is_news", "news_front_page", "lengthyLinkDomain"]
-numeric_cols = ["alchemy_category_score", "avglinksize", "commonlinkratio_1", "commonlinkratio_2",
+numeric_cols = ["avglinksize", "commonlinkratio_1", "commonlinkratio_2",
         "commonlinkratio_3", "commonlinkratio_4", "compression_ratio", "frameTagRatio", "html_ratio",
         "image_ratio", "linkwordscore", "non_markup_alphanum_characters", "numberOfLinks",
         "numwords_in_url", "parametrizedLinkRatio", "spelling_errors_ratio"]
 # these have too many blank values
-excluded_cols = ["framebased", "hasDomainLink", "embed_ratio"]
+excluded_cols = ["framebased", "hasDomainLink", "embed_ratio", "alchemy_category_score"]
 
 replacements = {
     "is_news": ("?", 0),
@@ -57,12 +58,32 @@ def investigate(trainDF, print_examples=False, print_counts=False):
         print("Value Counts (catagories: {})".format(col[2].size))
         if print_counts: print(col[2][:5])
 
+    print("PCA analysis of numeric variables")
+    # scale the data first
+    X = np.array(trainDF[numeric_cols])
+    X = preprocessing.scale(X)
+
+    pca = PCA()
+    pca.fit(X)
+    print("Explained variance")
+    print(pca.explained_variance_ratio_)
+    plt.plot(pca.explained_variance_ratio_)
+    plt.show()
+
+
 if __name__ == "__main__":
 
     trainDF = load_data(os.path.join("data", "train.tsv"))
     testDF = load_data(os.path.join("data", "test.tsv"))
 
-    tfidf_cl = TFIDF(trainDF, testDF)
+    # tfidf_cl = TFIDF(trainDF, testDF)
+    # print(tfidf_cl.eval())
 
-    print tfidf_cl.eval()
+    numlog_cl = NumerLog(trainDF, testDF)
+    print(numlog_cl.eval())
+
+    numsvc_cl = NumerSVC(trainDF, testDF)
+    print(numsvc_cl.eval())
+
+    # investigate(trainDF)
 
