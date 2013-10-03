@@ -7,7 +7,7 @@ import cPickle
 from sklearn import metrics, preprocessing, cross_validation
 from sklearn.decomposition import PCA
 
-from models import TFIDF, NumerLog, NumerSVC
+from models import TFIDF, NumerLog, NumerSVC, Stacker
 
 # column categories and transforms
 id_cols = ["url", "urlid"]
@@ -87,17 +87,21 @@ def gen_models():
     trainDF = load_data(os.path.join("data", "train.tsv"))
     testDF = load_data(os.path.join("data", "test.tsv"))
 
-    tfidf_cl = TFIDF(trainDF, testDF)
-    cache_model(tfidf_cl, "tfidf.pkl")
+    stacker = Stacker(trainDF, testDF)
+
+    return stacker
+
 
 if __name__ == "__main__":
+    stacker = gen_models()
+    stacker.eval()
 
-    #gen_models()
-    tfidf_cl = load_model("tfidf.pkl")
+    stacker.last_eval()
 
-    tfidf_cl.fit()
-    preds = tfidf_cl.predict("train")
-    print(preds)
-    print(preds.shape)
+
+
+
+
+
 
 
