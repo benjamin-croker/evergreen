@@ -92,23 +92,12 @@ def gen_models():
 
 if __name__ == "__main__":
 
+    #gen_models()
     tfidf_cl = load_model("tfidf.pkl")
 
-    tfidf_cl.init_one_fold(10)
-
-    kf = cross_validation.KFold(n=tfidf_cl.train_size(), n_folds=10)
-
-    i = 0
-    for train_indices, test_indices in kf:
-        tfidf_cl.one_fold_eval(train_indices, test_indices, i)
-        i += 1
-
-    print(tfidf_cl.last_eval())
-    cache_model(tfidf_cl, "tfidf.pkl")
-
-    tfidf_cl = None
-
-    tfidf_cl = load_model("tfidf.pkl")
-    print(tfidf_cl.last_eval())
+    tfidf_cl.fit()
+    preds = tfidf_cl.predict("train")
+    print(preds)
+    print(preds.shape)
 
 
