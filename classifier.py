@@ -7,7 +7,7 @@ import cPickle
 from sklearn import metrics, preprocessing, cross_validation
 from sklearn.decomposition import PCA
 
-from models import TFIDF, NumerLog, NumerSVC, CaterLog, Stacker
+from models import TFIDFLog, TFIDFRandForest, NumerLog, NumerSVC, CaterLog, Stacker
 
 # column categories and transforms
 id_cols = ["url", "urlid"]
@@ -94,7 +94,7 @@ def evaluate(model):
     model.last_eval()
 
 if __name__ == "__main__":
-    #for ModelClass in [CaterLog, Stacker]:
+    # for ModelClass in [TFIDFRandForest]:
     for ModelClass in [Stacker]:
         evaluate(gen_model(ModelClass))
 
