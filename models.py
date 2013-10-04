@@ -288,7 +288,10 @@ class Stacker(object):
         self._AUCs = None
 
         self._models = [Model(trainDF, testDF) for Model in model_classes]
-        self._model = lm.LinearRegression()
+        self._model = lm.LogisticRegression(penalty='l2', dual=True, tol=0.0001,
+                                            C=1, fit_intercept=True, intercept_scaling=1.0,
+                                            class_weight=None, random_state=None)
+
         self._y = trainDF[self._y_col]
 
 
@@ -314,6 +317,9 @@ class Stacker(object):
             model.predict("train", train_indices)[np.newaxis].T for model in self._models
         ])
 
+        # scale the data
+        X_train_subset = preprocessing.StandardScaler().fit_transform(X_train_subset)
+
         # train the stacking model
         self._model.fit(X_train_subset, y_subset)
 
@@ -324,8 +330,11 @@ class Stacker(object):
         X_pred_subset = np.hstack([
             model.predict(pred_data, pred_indices)[np.newaxis].T for model in self._models
         ])
+
+        # scale the data
+        X_pred_subset = preprocessing.StandardScaler().fit_transform(X_pred_subset)
         
-        return self._model.predict(X_pred_subset)
+        return self._model.predict_proba(X_pred_subset)[:, 1]
 
 
     def eval(self, n_folds=10):
