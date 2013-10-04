@@ -91,6 +91,7 @@ class ClassifierModel(object):
         return preds
 
     def last_eval(self):
+        print("Overall AUC: mean={}, std={}".format(self._AUCs.mean(), self._AUCs.std()))
         return self._AUCs
 
 
@@ -165,7 +166,7 @@ class NumerSVC(ClassifierModel):
     def __init__(self, trainDF, testDF):
         ClassifierModel.__init__(self)
 
-        self._svc_model = SVC(probability=True, C=1, gamma=0.1, cache_size=1000)
+        self._model = SVC(probability=True, C=1, gamma=0.1, cache_size=1000)
 
         self._y = trainDF[self._y_col]
         X_train = np.array(trainDF[self._X_cols])
@@ -182,6 +183,39 @@ class NumerSVC(ClassifierModel):
         self._X_test = X_all[X_train.shape[0]:, :]
 
 
+class CaterLog(ClassifierModel):
+    _X_cols = ["alchemy_category", "is_news", "news_front_page", "lengthyLinkDomain"]
+    _y_col = "label"
+
+    def __init__(self, trainDF, testDF):
+        ClassifierModel.__init__(self)
+
+        oneHotEncoder = preprocessing.OneHotEncoder()
+        labelEncoder = preprocessing.LabelEncoder()
+
+        self._model = lm.LogisticRegression(penalty='l2', dual=True, tol=0.0001,
+                                            C=1, fit_intercept=True, intercept_scaling=1.0,
+                                            class_weight=None, random_state=None)
+        self._y = trainDF[self._y_col]
+        X_train = np.array(trainDF[self._X_cols])
+        X_test = np.array(testDF[self._X_cols])
+
+        X_all = np.vstack((X_train, X_test))
+
+        # label encoder can only operate on one column at a time
+        for i, column in enumerate(X_all.T):
+            X_all.T[i] = labelEncoder.fit_transform(column)
+        X_all = oneHotEncoder.fit_transform(X_all)
+
+        self._X_train = X_all[:len(X_train)]
+        self._X_test = X_all[len(X_train):]
+
+
+    def __str__(self):
+        return "Categorical Logistic Regression"
+
+
+
 class Stacker(object):
     _y_col = "label"
     _y = None
@@ -189,7 +223,7 @@ class Stacker(object):
     _model = None
     _models = None
 
-    def __init__(self, trainDF, testDF, model_classes=(TFIDF, NumerLog)):
+    def __init__(self, trainDF, testDF, model_classes=(TFIDF, NumerLog, CaterLog)):
         """ models is a list of models to stack using logistic regression
         """
         self._AUCs = None
