@@ -275,6 +275,22 @@ class CaterLog(ClassifierModel):
 
 
 
+class Mixer(object):
+    def __init__(self, weights):
+        # normalise weights
+        self._weights = np.array(weights)/np.array(weights).sum()
+
+    def fit(self, X, y):
+        """ just for compatability with API. Does nothing
+        """
+        pass
+
+
+    def predict(self, X):
+        return np.dot(X, self._weights)
+
+
+
 class Stacker(object):
     _y_col = "label"
     _y = None
@@ -282,7 +298,7 @@ class Stacker(object):
     _model = None
     _models = None
 
-    def __init__(self, trainDF, testDF, model_classes=(TFIDFLog, TFIDFRandForest)):
+    def __init__(self, trainDF, testDF, model_classes=(TFIDFLog, TFIDFRandForest), weights=(0.7, 0.3)):
         """ models is a list of models to stack using logistic regression
         """
         self._AUCs = None
@@ -291,6 +307,7 @@ class Stacker(object):
         self._model = lm.LogisticRegression(penalty='l2', dual=True, tol=0.0001,
                                             C=3, fit_intercept=False, class_weight=None,
                                             random_state=None)
+        self._model = Mixer(weights)
         self._y = trainDF[self._y_col]
 
 
@@ -317,7 +334,7 @@ class Stacker(object):
         ])
 
         # scale the data
-        X_train_subset = preprocessing.StandardScaler().fit_transform(X_train_subset)
+        # X_train_subset = preprocessing.StandardScaler().fit_transform(X_train_subset)
 
         # train the stacking model
         self._model.fit(X_train_subset, y_subset)
@@ -331,9 +348,10 @@ class Stacker(object):
         ])
 
         # scale the data
-        X_pred_subset = preprocessing.StandardScaler().fit_transform(X_pred_subset)
+        # X_pred_subset = preprocessing.StandardScaler().fit_transform(X_pred_subset)
         
-        return self._model.predict_proba(X_pred_subset)[:, 1]
+        # return self._model.predict_proba(X_pred_subset)[:, 1]
+        return self._model.predict(X_pred_subset)
 
 
     def eval(self, n_folds=10):
