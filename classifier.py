@@ -82,21 +82,31 @@ def load_model(file_name):
         print("Loading model {}".format(file_name))
         return cPickle.load(f)
 
-
 def gen_model(ModelClass):
     trainDF = load_data(os.path.join("data", "train.tsv"))
     testDF = load_data(os.path.join("data", "test.tsv"))
-
     return ModelClass(trainDF, testDF)
 
-def evaluate(model):
+def model_evaluation(model):
     model.eval()
     model.last_eval()
 
+def model_submission(model):
+    submissionDF = model.submission()
+    submissionDF.to_csv("submission.csv", index=False)
+
 if __name__ == "__main__":
-    # for ModelClass in [TFIDFRandForest]:
-    for ModelClass in [Stacker]:
-        evaluate(gen_model(ModelClass))
+    # model_evaluation(Stacker)
+
+    # stacker = Stacker(load_data(os.path.join("data", "train.tsv")),
+    #                   load_data(os.path.join("data", "test.tsv")))
+    # cache_model(stacker, "stacker")
+
+    stacker = load_model("stacker")
+    model_submission(stacker)
+
+
+
 
 
 

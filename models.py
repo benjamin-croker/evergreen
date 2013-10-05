@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 from sklearn import metrics, preprocessing, cross_validation
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -7,11 +8,12 @@ import sklearn.linear_model as lm
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 
-SEED = 1
+SEED = 42
 
 class ClassifierModel(object):
     _X_cols = []
     _y_col = "label"
+    _id_col = "urlid"
 
     _X_train = None
     _X_test = None
@@ -40,7 +42,12 @@ class ClassifierModel(object):
             y_subset = y_subset[train_indices]
 
         # check the hash of the training indices, and only retrain if needed
-        if hash(tuple(train_indices)) == self._train_index_hash:
+        if train_indices is not None:
+            hash_check = hash(tuple(train_indices))
+        else:
+            hash_check = hash(None)
+
+        if hash_check == self._train_index_hash:
             print("{}: model already fitted".format(str(self)))
 
         else:
@@ -103,7 +110,6 @@ class ClassifierModel(object):
 
 class TFIDFLog(ClassifierModel):
     _X_cols = ["boilerplate"]
-    _y_col = "label"
 
     def __init__(self, trainDF, testDF):
         ClassifierModel.__init__(self)
@@ -117,6 +123,9 @@ class TFIDFLog(ClassifierModel):
                                             class_weight=None, random_state=None)
 
         self._y = trainDF[self._y_col]
+        self._ids_train = trainDF[self._id_col]
+        self._ids_test = testDF[self._id_col]
+
         X_train = list(np.array(trainDF[self._X_cols])[:, 0])
         X_test = list(np.array(testDF[self._X_cols])[:, 0])
 
@@ -134,7 +143,6 @@ class TFIDFLog(ClassifierModel):
 
 class TFIDFRandForest(ClassifierModel):
     _X_cols = ["boilerplate"]
-    _y_col = "label"
 
     def __init__(self, trainDF, testDF):
         ClassifierModel.__init__(self)
@@ -148,9 +156,12 @@ class TFIDFRandForest(ClassifierModel):
                                             C=1, fit_intercept=True, intercept_scaling=1.0,
                                             class_weight=None, random_state=None)
 
-        self._model = RandomForestClassifier(n_estimators=100)
+        self._model = RandomForestClassifier(n_estimators=100, min_samples_split=8)
 
         self._y = trainDF[self._y_col]
+        self._ids_train = trainDF[self._id_col]
+        self._ids_test = testDF[self._id_col]
+
         X_train = list(np.array(trainDF[self._X_cols])[:, 0])
         X_test = list(np.array(testDF[self._X_cols])[:, 0])
 
@@ -181,7 +192,6 @@ class NumerLog(ClassifierModel):
                "commonlinkratio_3", "commonlinkratio_4", "compression_ratio", "frameTagRatio", "html_ratio",
                "image_ratio", "linkwordscore", "non_markup_alphanum_characters", "numberOfLinks",
                "numwords_in_url", "parametrizedLinkRatio", "spelling_errors_ratio"]
-    _y_col = "label"
 
     def __init__(self, trainDF, testDF):
         ClassifierModel.__init__(self)
@@ -191,6 +201,9 @@ class NumerLog(ClassifierModel):
                                             class_weight=None, random_state=None)
 
         self._y = trainDF[self._y_col]
+        self._ids_train = trainDF[self._id_col]
+        self._ids_test = testDF[self._id_col]
+
         X_train = np.array(trainDF[self._X_cols])
         X_test = np.array(testDF[self._X_cols])
 
@@ -223,6 +236,9 @@ class NumerSVC(ClassifierModel):
         self._model = SVC(probability=True, C=1, gamma=0.1, cache_size=1000)
 
         self._y = trainDF[self._y_col]
+        self._ids_train = trainDF[self._id_col]
+        self._ids_test = testDF[self._id_col]
+
         X_train = np.array(trainDF[self._X_cols])
         X_test = np.array(testDF[self._X_cols])
 
@@ -256,6 +272,9 @@ class CaterLog(ClassifierModel):
                                             C=1, fit_intercept=True, intercept_scaling=1.0,
                                             class_weight=None, random_state=None)
         self._y = trainDF[self._y_col]
+        self._ids_train = trainDF[self._id_col]
+        self._ids_test = testDF[self._id_col]
+        
         X_train = np.array(trainDF[self._X_cols])
         X_test = np.array(testDF[self._X_cols])
 
@@ -293,12 +312,13 @@ class Mixer(object):
 
 class Stacker(object):
     _y_col = "label"
+    _id_col = "urlid"
     _y = None
 
     _model = None
     _models = None
 
-    def __init__(self, trainDF, testDF, model_classes=(TFIDFLog, TFIDFRandForest), weights=(0.7, 0.3)):
+    def __init__(self, trainDF, testDF, model_classes=(TFIDFLog, TFIDFRandForest), weights=(0.9, 0.1)):
         """ models is a list of models to stack using logistic regression
         """
         self._AUCs = None
@@ -308,7 +328,10 @@ class Stacker(object):
                                             C=3, fit_intercept=False, class_weight=None,
                                             random_state=None)
         self._model = Mixer(weights)
+
         self._y = trainDF[self._y_col]
+        self._ids_train = trainDF[self._id_col]
+        self._ids_test = testDF[self._id_col]
 
 
     def __str__(self):
@@ -333,9 +356,6 @@ class Stacker(object):
             model.predict("train", train_indices)[np.newaxis].T for model in self._models
         ])
 
-        # scale the data
-        # X_train_subset = preprocessing.StandardScaler().fit_transform(X_train_subset)
-
         # train the stacking model
         self._model.fit(X_train_subset, y_subset)
 
@@ -346,11 +366,7 @@ class Stacker(object):
         X_pred_subset = np.hstack([
             model.predict(pred_data, pred_indices)[np.newaxis].T for model in self._models
         ])
-
-        # scale the data
-        # X_pred_subset = preprocessing.StandardScaler().fit_transform(X_pred_subset)
         
-        # return self._model.predict_proba(X_pred_subset)[:, 1]
         return self._model.predict(X_pred_subset)
 
 
@@ -400,5 +416,15 @@ class Stacker(object):
         for model in self._models:
             model.last_eval()
         return self._AUCs
+
+    def submission(self):
+        print("{}: making a submission dataframe".format(str(self)))
+        self.fit()
+        preds = self.predict("test")
+
+        submissionDF = pd.DataFrame(self._ids_test)
+        submissionDF[self._y_col] = preds
+
+        return submissionDF
 
 
