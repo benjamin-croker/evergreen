@@ -289,9 +289,8 @@ class Stacker(object):
 
         self._models = [Model(trainDF, testDF) for Model in model_classes]
         self._model = lm.LogisticRegression(penalty='l2', dual=True, tol=0.0001,
-                                            C=1, fit_intercept=True, intercept_scaling=1.0,
-                                            class_weight=None, random_state=None)
-
+                                            C=3, fit_intercept=False, class_weight=None,
+                                            random_state=None)
         self._y = trainDF[self._y_col]
 
 
