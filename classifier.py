@@ -100,10 +100,8 @@ if __name__ == "__main__":
     # cache_model(stacker, "stacker")
     # model_evaluation(stacker)
 
-    stemmed = gen_model(TFIDFRandForestStemmed)
-    cache_model(stemmed, "tfidf_rf_stemmed")
-    model_evaluation(stemmed)
-
+    stacker = load_model("stacker")
+    model_submission(stacker)
 
 
 

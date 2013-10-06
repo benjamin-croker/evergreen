@@ -8,6 +8,7 @@ import sklearn.linear_model as lm
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 
+from nltk.stem.lancaster import LancasterStemmer
 from nltk.stem.snowball import EnglishStemmer
 from nltk.tokenize import RegexpTokenizer
 
@@ -123,7 +124,7 @@ class TFIDFLog(ClassifierModel):
                               sublinear_tf=1)
 
         self._model = lm.LogisticRegression(penalty='l2', dual=True, tol=0.0001,
-                                            C=1, fit_intercept=True, intercept_scaling=1.0,
+                                            C=3, fit_intercept=True, intercept_scaling=1.0,
                                             class_weight=None, random_state=None)
 
         self._y = trainDF[self._y_col]
@@ -156,7 +157,7 @@ class TFIDFLogStemmed(ClassifierModel):
                               sublinear_tf=1)
 
         self._model = lm.LogisticRegression(penalty='l2', dual=True, tol=0.0001,
-                                            C=1, fit_intercept=True, intercept_scaling=1.0,
+                                            C=3, fit_intercept=True, intercept_scaling=1.0,
                                             class_weight=None, random_state=None)
 
         self._y = trainDF[self._y_col]
@@ -285,7 +286,7 @@ class TFIDFRandForestStemmed(ClassifierModel):
 
 
     def _stem_all(self, X):
-        stemmer = EnglishStemmer()
+        stemmer = LancasterStemmer()
         # tokenizer will remove all punctuation
         tokenizer = RegexpTokenizer(r'\w+')
 
@@ -321,7 +322,9 @@ class Stacker(object):
     _model = None
     _models = None
 
-    def __init__(self, trainDF, testDF, model_classes=(TFIDFLog, TFIDFRandForest), weights=(0.85, 0.15)):
+    def __init__(self, trainDF, testDF,
+                 model_classes=(TFIDFLogStemmed, TFIDFRandForestStemmed),
+                 weights=(0.85, 0.15)):
         """ models is a list of models to stack using logistic regression
         """
         self._AUCs = None
