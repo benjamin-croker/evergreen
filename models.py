@@ -156,7 +156,7 @@ class TFIDFRandForest(ClassifierModel):
                                             C=1, fit_intercept=True, intercept_scaling=1.0,
                                             class_weight=None, random_state=None)
 
-        self._model = RandomForestClassifier(n_estimators=100, min_samples_split=8)
+        self._model = RandomForestClassifier(n_estimators=100, min_samples_split=16)
 
         self._y = trainDF[self._y_col]
         self._ids_train = trainDF[self._id_col]
