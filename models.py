@@ -8,6 +8,9 @@ import sklearn.linear_model as lm
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 
+from nltk.stem.snowball import EnglishStemmer
+from nltk.tokenize import RegexpTokenizer
+
 SEED = 42
 
 class ClassifierModel(object):
@@ -108,6 +111,7 @@ class ClassifierModel(object):
         return self._AUCs
 
 
+
 class TFIDFLog(ClassifierModel):
     _X_cols = ["boilerplate"]
 
@@ -137,7 +141,53 @@ class TFIDFLog(ClassifierModel):
 
 
     def __str__(self):
-        return "TFIDFLog"
+        return "TFIDF Logistic Regression"
+
+
+
+class TFIDFLogStemmed(ClassifierModel):
+    _X_cols = ["boilerplate"]
+
+    def __init__(self, trainDF, testDF):
+        ClassifierModel.__init__(self)
+
+        tfv = TfidfVectorizer(min_df=3, max_features=None, strip_accents='unicode',
+                              analyzer='word', token_pattern=r'\w{1,}', ngram_range=(1, 2), use_idf=1, smooth_idf=1,
+                              sublinear_tf=1)
+
+        self._model = lm.LogisticRegression(penalty='l2', dual=True, tol=0.0001,
+                                            C=1, fit_intercept=True, intercept_scaling=1.0,
+                                            class_weight=None, random_state=None)
+
+        self._y = trainDF[self._y_col]
+        self._ids_train = trainDF[self._id_col]
+        self._ids_test = testDF[self._id_col]
+
+        X_train = list(np.array(trainDF[self._X_cols])[:, 0])
+        X_test = list(np.array(testDF[self._X_cols])[:, 0])
+
+        X_all = X_train + X_test
+        X_all = self._stem_all(X_all)
+        X_all = tfv.fit_transform(X_all)
+
+        self._X_train = X_all[:len(X_train)]
+        self._X_test = X_all[len(X_train):]
+
+
+    def __str__(self):
+        return "TFIDF stemmed Logistic Regression"
+
+
+    def _stem_all(self, X):
+        stemmer = EnglishStemmer()
+        # tokenizer will remove all punctuation
+        tokenizer = RegexpTokenizer(r'\w+')
+
+        stem_text = lambda text: " ".join([
+                stemmer.stem(word) for word in tokenizer.tokenize(text)
+                ])
+
+        return [stem_text(text) for text in X]
 
 
 
@@ -166,7 +216,8 @@ class TFIDFRandForest(ClassifierModel):
         X_test = list(np.array(testDF[self._X_cols])[:, 0])
 
         # transform the data to a tfidf vector, then train the logistic regression model
-        X_tfidf = tfv.fit_transform(X_train + X_test)
+        X_tfidf = X_train + X_test
+        X_tfidf = tfv.fit_transform(X_tfidf)
         print("{}: extracting important words".format(str(self)))
         log_cl.fit(X_tfidf[:len(X_train)], self._y)
 
@@ -183,114 +234,66 @@ class TFIDFRandForest(ClassifierModel):
 
 
     def __str__(self):
-        return "TFIDFRandForest"
+        return "TFIDF Random Forest"
 
 
 
-class NumerLog(ClassifierModel):
-    _X_cols = ["avglinksize", "commonlinkratio_1", "commonlinkratio_2",
-               "commonlinkratio_3", "commonlinkratio_4", "compression_ratio", "frameTagRatio", "html_ratio",
-               "image_ratio", "linkwordscore", "non_markup_alphanum_characters", "numberOfLinks",
-               "numwords_in_url", "parametrizedLinkRatio", "spelling_errors_ratio"]
+class TFIDFRandForestStemmed(ClassifierModel):
+    _X_cols = ["boilerplate"]
 
     def __init__(self, trainDF, testDF):
         ClassifierModel.__init__(self)
 
-        self._model = lm.LogisticRegression(penalty='l2', dual=True, tol=0.0001,
+        tfv = TfidfVectorizer(min_df=3, max_features=None, strip_accents='unicode',
+                              analyzer='word', token_pattern=r'\w{1,}', ngram_range=(1, 2), use_idf=1, smooth_idf=1,
+                              sublinear_tf=1)
+
+        # used to find most important features
+        log_cl = lm.LogisticRegression(penalty='l2', dual=True, tol=0.0001,
                                             C=1, fit_intercept=True, intercept_scaling=1.0,
                                             class_weight=None, random_state=None)
 
-        self._y = trainDF[self._y_col]
-        self._ids_train = trainDF[self._id_col]
-        self._ids_test = testDF[self._id_col]
-
-        X_train = np.array(trainDF[self._X_cols])
-        X_test = np.array(testDF[self._X_cols])
-
-        # scale and take best 5 PCA components
-        X_all = np.vstack([X_train, X_test])
-        X_all = preprocessing.scale(X_all)
-
-        pca = PCA(n_components=5)
-        X_all = pca.fit_transform(X_all)
-
-        self._X_train = X_all[:X_train.shape[0], :]
-        self._X_test = X_all[X_train.shape[0]:, :]
-
-
-    def __str__(self):
-        return "Numerical Logistic Regression"
-
-
-
-class NumerSVC(ClassifierModel):
-    _X_cols = ["avglinksize", "commonlinkratio_1", "commonlinkratio_2",
-               "commonlinkratio_3", "commonlinkratio_4", "compression_ratio", "frameTagRatio", "html_ratio",
-               "image_ratio", "linkwordscore", "non_markup_alphanum_characters", "numberOfLinks",
-               "numwords_in_url", "parametrizedLinkRatio", "spelling_errors_ratio"]
-    _y_col = "label"
-
-    def __init__(self, trainDF, testDF):
-        ClassifierModel.__init__(self)
-
-        self._model = SVC(probability=True, C=1, gamma=0.1, cache_size=1000)
+        self._model = RandomForestClassifier(n_estimators=100, min_samples_split=16)
 
         self._y = trainDF[self._y_col]
         self._ids_train = trainDF[self._id_col]
         self._ids_test = testDF[self._id_col]
 
-        X_train = np.array(trainDF[self._X_cols])
-        X_test = np.array(testDF[self._X_cols])
+        X_train = list(np.array(trainDF[self._X_cols])[:, 0])
+        X_test = list(np.array(testDF[self._X_cols])[:, 0])
 
-        # scale and take best 5 PCA components
-        X_all = np.vstack([X_train, X_test])
-        X_all = preprocessing.scale(X_all)
+        # transform the data to a tfidf vector, then train the logistic regression model
+        X_tfidf = self._stem_all(X_train + X_test)
+        X_tfidf = tfv.fit_transform(X_tfidf)
+        print("{}: extracting important words".format(str(self)))
+        log_cl.fit(X_tfidf[:len(X_train)], self._y)
 
-        pca = PCA(n_components=5)
-        X_all = pca.fit_transform(X_all)
+        # get the most important words
+        coef = log_cl.coef_.ravel()
+        important_words_ind = np.argsort(np.abs(coef))[-100:]
 
-        self._X_train = X_all[:X_train.shape[0], :]
-        self._X_test = X_all[X_train.shape[0]:, :]
-
-
-    def __str__():
-        return "Numerical SVM Classifier"
-
-
-
-class CaterLog(ClassifierModel):
-    _X_cols = ["alchemy_category", "is_news", "news_front_page", "lengthyLinkDomain"]
-    _y_col = "label"
-
-    def __init__(self, trainDF, testDF):
-        ClassifierModel.__init__(self)
-
-        oneHotEncoder = preprocessing.OneHotEncoder()
-        labelEncoder = preprocessing.LabelEncoder()
-
-        self._model = lm.LogisticRegression(penalty='l2', dual=True, tol=0.0001,
-                                            C=1, fit_intercept=True, intercept_scaling=1.0,
-                                            class_weight=None, random_state=None)
-        self._y = trainDF[self._y_col]
-        self._ids_train = trainDF[self._id_col]
-        self._ids_test = testDF[self._id_col]
-        
-        X_train = np.array(trainDF[self._X_cols])
-        X_test = np.array(testDF[self._X_cols])
-
-        X_all = np.vstack((X_train, X_test))
-
-        # label encoder can only operate on one column at a time
-        for i, column in enumerate(X_all.T):
-            X_all.T[i] = labelEncoder.fit_transform(column)
-        X_all = oneHotEncoder.fit_transform(X_all)
+        print("{}: important words are:".format(str(self)))
+        print(np.array(tfv.get_feature_names())[important_words_ind])
+        X_all = X_tfidf[:, important_words_ind].todense()
 
         self._X_train = X_all[:len(X_train)]
         self._X_test = X_all[len(X_train):]
 
 
     def __str__(self):
-        return "Categorical Logistic Regression"
+        return "TFIDF stemmed Random Forest"
+
+
+    def _stem_all(self, X):
+        stemmer = EnglishStemmer()
+        # tokenizer will remove all punctuation
+        tokenizer = RegexpTokenizer(r'\w+')
+
+        stem_text = lambda text: " ".join([
+                stemmer.stem(word) for word in tokenizer.tokenize(text)
+                ])
+
+        return [stem_text(text) for text in X]
 
 
 
@@ -318,7 +321,7 @@ class Stacker(object):
     _model = None
     _models = None
 
-    def __init__(self, trainDF, testDF, model_classes=(TFIDFLog, TFIDFRandForest), weights=(0.9, 0.1)):
+    def __init__(self, trainDF, testDF, model_classes=(TFIDFLog, TFIDFRandForest), weights=(0.85, 0.15)):
         """ models is a list of models to stack using logistic regression
         """
         self._AUCs = None

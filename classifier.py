@@ -7,7 +7,7 @@ import cPickle
 from sklearn import metrics, preprocessing, cross_validation
 from sklearn.decomposition import PCA
 
-from models import TFIDFLog, TFIDFRandForest, NumerLog, NumerSVC, CaterLog, Stacker
+from models import TFIDFLog, TFIDFRandForest, TFIDFLogStemmed, TFIDFRandForestStemmed, Stacker
 
 # column categories and transforms
 id_cols = ["url", "urlid"]
@@ -96,15 +96,13 @@ def model_submission(model):
     submissionDF.to_csv("submission.csv", index=False)
 
 if __name__ == "__main__":
-    # model_evaluation(Stacker)
-
-    # stacker = Stacker(load_data(os.path.join("data", "train.tsv")),
-    #                   load_data(os.path.join("data", "test.tsv")))
+    # stacker = gen_model(Stacker)
     # cache_model(stacker, "stacker")
+    # model_evaluation(stacker)
 
-    stacker = load_model("stacker")
-    model_submission(stacker)
-
+    stemmed = gen_model(TFIDFRandForestStemmed)
+    cache_model(stemmed, "tfidf_rf_stemmed")
+    model_evaluation(stemmed)
 
 
 
