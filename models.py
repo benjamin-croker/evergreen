@@ -112,6 +112,21 @@ class ClassifierModel(object):
         return self._AUCs
 
 
+    def get_data(self):
+        """ returns X_train, X_test, y
+        """
+        return self._X_train, self._X_test, self._y
+
+
+    def add_features(self, X_train, X_test):
+        """ stacks X_train and X_test with the existing training and test data
+            X_train and X_test must have the same number of columns as the
+            existing training and test data
+        """
+        self._X_train = np.hstack((self._X_train, X_train))
+        self._X_test = np.hstack((self._X_test, X_test))
+
+
 
 class TFIDFLog(ClassifierModel):
     _X_cols = ["boilerplate"]
@@ -298,6 +313,41 @@ class TFIDFRandForestStemmed(ClassifierModel):
 
 
 
+class CaterLog(ClassifierModel):
+    _X_cols = ["alchemy_category", "is_news", "news_front_page", "lengthyLinkDomain"]
+    _y_col = "label"
+
+    def __init__(self, trainDF, testDF):
+        ClassifierModel.__init__(self)
+
+        oneHotEncoder = preprocessing.OneHotEncoder()
+        labelEncoder = preprocessing.LabelEncoder()
+
+        self._model = lm.LogisticRegression(penalty='l2', dual=True, tol=0.0001,
+                                            C=1, fit_intercept=True, intercept_scaling=1.0,
+                                            class_weight=None, random_state=None)
+        self._y = trainDF[self._y_col]
+        self._ids_train = trainDF[self._id_col]
+        self._ids_test = testDF[self._id_col]
+
+        X_train = np.array(trainDF[self._X_cols])
+        X_test = np.array(testDF[self._X_cols])
+
+        X_all = np.vstack((X_train, X_test))
+
+        # label encoder can only operate on one column at a time
+        for i, column in enumerate(X_all.T):
+            X_all.T[i] = labelEncoder.fit_transform(column)
+        X_all = oneHotEncoder.fit_transform(X_all)
+
+        self._X_train = X_all[:len(X_train)]
+        self._X_test = X_all[len(X_train):]
+
+
+    def __str__(self):
+       return "Categorical Logistic Regression"
+
+
 class Mixer(object):
     def __init__(self, weights):
         # normalise weights
@@ -323,8 +373,8 @@ class Stacker(object):
     _models = None
 
     def __init__(self, trainDF, testDF,
-                 model_classes=(TFIDFLogStemmed, TFIDFRandForestStemmed),
-                 weights=(0.85, 0.15)):
+                 model_classes=(TFIDFLogStemmed, TFIDFRandForestStemmed, CaterLog),
+                 weights=(0.825, 0.125, 0.05)):
         """ models is a list of models to stack using logistic regression
         """
         self._AUCs = None
