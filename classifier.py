@@ -58,7 +58,8 @@ def investigate(trainDF, print_examples=False, print_counts=False):
             print(col[1][:5])
 
         print("Value Counts (catagories: {})".format(col[2].size))
-        if print_counts: print(col[2][:5])
+        if print_counts:
+            print(col[2][:5])
 
     print("PCA analysis of numeric variables")
     # scale the data first
@@ -84,14 +85,17 @@ def load_model(file_name):
         print("Loading model {}".format(file_name))
         return cPickle.load(f)
 
+
 def gen_model(ModelClass):
     trainDF = load_data(os.path.join("data", "train.tsv"))
     testDF = load_data(os.path.join("data", "test.tsv"))
     return ModelClass(trainDF, testDF)
 
+
 def model_evaluation(model):
     model.eval()
     model.last_eval()
+
 
 def model_submission(model):
     submissionDF = model.submission()
@@ -101,15 +105,7 @@ if __name__ == "__main__":
 
     stacker = gen_model(Stacker)
     cache_model(stacker, "stacker")
-    #model_evaluation(stacker)
+    model_evaluation(stacker)
 
-    stacker = load_model("stacker")
-    model_submission(stacker)
-
-
-
-
-
-
-
-
+    #stacker = load_model("stacker")
+    #model_submission(stacker)
