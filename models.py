@@ -4,6 +4,7 @@ import pandas as pd
 from sklearn import metrics, cross_validation
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.naive_bayes import GaussianNB
 
 import transforms as tx
 
@@ -130,57 +131,13 @@ class TFIDFLog(ClassifierModel):
         X_train = trainDF[self._X_cols]
         X_test = testDF[self._X_cols]
 
-        self._X_train, self._X_test = tx.TFIDF_transform(X_train, X_test, self._y)
+        self._X_train, self._X_test = tx.TFIDF_transform(X_train, X_test, self._y, "snowball")
 
     def __str__(self):
         return "TFIDF Logistic Regression"
 
 
-class TFIDFLogStemmed(ClassifierModel):
-    _X_cols = ["boilerplate"]
-
-    def __init__(self, trainDF, testDF):
-        ClassifierModel.__init__(self)
-
-        self._model = LogisticRegression(penalty='l2', dual=True, tol=0.0001,
-                                         C=3, fit_intercept=True, intercept_scaling=1.0,
-                                         class_weight=None, random_state=None)
-
-        self._y = trainDF[self._y_col]
-        self._ids_train = trainDF[self._id_col]
-        self._ids_test = testDF[self._id_col]
-
-        X_train = trainDF[self._X_cols]
-        X_test = testDF[self._X_cols]
-
-        self._X_train, self._X_test = tx.TFIDF_transform(X_train, X_test, self._y, "snowball")
-
-    def __str__(self):
-        return "TFIDF stemmed Logistic Regression"
-
-
 class TFIDFRandForest(ClassifierModel):
-    _X_cols = ["boilerplate"]
-
-    def __init__(self, trainDF, testDF):
-        ClassifierModel.__init__(self)
-
-        self._model = RandomForestClassifier(n_estimators=100, min_samples_split=16)
-
-        self._y = trainDF[self._y_col]
-        self._ids_train = trainDF[self._id_col]
-        self._ids_test = testDF[self._id_col]
-
-        X_train = trainDF[self._X_cols]
-        X_test = testDF[self._X_cols]
-
-        self._X_train, self._X_test = tx.TFIDF_transform(X_train, X_test, self._y, n_important=100)
-
-    def __str__(self):
-        return "TFIDF Random Forest"
-
-
-class TFIDFRandForestStemmed(ClassifierModel):
     _X_cols = ["boilerplate"]
 
     def __init__(self, trainDF, testDF):
@@ -200,7 +157,30 @@ class TFIDFRandForestStemmed(ClassifierModel):
                                                          n_important=100)
 
     def __str__(self):
-        return "TFIDF stemmed Random Forest"
+        return "TFIDF Random Forest"
+
+
+class TFIDFNaiveBayes(ClassifierModel):
+    _X_cols = ["boilerplate"]
+
+    def __init__(self, trainDF, testDF):
+        ClassifierModel.__init__(self)
+
+        self._model = GaussianNB()
+
+        self._y = trainDF[self._y_col]
+        self._ids_train = trainDF[self._id_col]
+        self._ids_test = testDF[self._id_col]
+
+        X_train = trainDF[self._X_cols]
+        X_test = testDF[self._X_cols]
+
+        self._X_train, self._X_test = tx.TFIDF_transform(X_train, X_test, self._y,
+                                                         stemmer="snowball",
+                                                         n_important=100)
+
+    def __str__(self):
+        return "TFIDF Naive Bayes"
 
 
 class CaterLog(ClassifierModel):
@@ -228,8 +208,7 @@ class CaterLog(ClassifierModel):
 
 class Mixer(object):
     def __init__(self, weights):
-        # normalise weights
-        self._weights = np.array(weights) / np.array(weights).sum()
+        self.set_weights(weights)
 
     def fit(self, X, y):
         """ just for compatability with API. Does nothing
@@ -238,6 +217,10 @@ class Mixer(object):
 
     def predict(self, X):
         return np.dot(X, self._weights)
+
+    def set_weights(self, weights):
+        # normalise weights
+        self._weights = np.array(weights) / np.array(weights).sum()
 
 
 class Stacker(object):
@@ -249,8 +232,8 @@ class Stacker(object):
     _models = None
 
     def __init__(self, trainDF, testDF,
-                 model_classes=(TFIDFLogStemmed, TFIDFRandForestStemmed, CaterLog),
-                 weights=(0.825, 0.125, 0.05)):
+                 model_classes=(TFIDFRandForest, TFIDFLog, TFIDFNaiveBayes, CaterLog),
+                 weights=(0.125, 0.7, 0.125, 0.05)):
         """ models is a list of models to stack using logistic regression
         """
         self._AUCs = None
@@ -338,6 +321,9 @@ class Stacker(object):
         for model in self._models:
             model.last_eval()
         return self._AUCs
+
+    def set_weights(self, weights):
+        self._model.set_weights(weights)
 
     def submission(self):
         print("{}: making a submission dataframe".format(str(self)))

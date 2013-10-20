@@ -7,9 +7,7 @@ import cPickle
 from sklearn import metrics, preprocessing, cross_validation
 from sklearn.decomposition import PCA
 
-from models import TFIDFLog, TFIDFRandForest,\
-    TFIDFLogStemmed, TFIDFRandForestStemmed,\
-    CaterLog, Stacker
+from models import TFIDFLog, TFIDFRandForest, TFIDFNaiveBayes, CaterLog, Stacker
 
 # column categories and transforms
 id_cols = ["url", "urlid"]
@@ -103,9 +101,13 @@ def model_submission(model):
 
 if __name__ == "__main__":
 
-    stacker = gen_model(Stacker)
-    cache_model(stacker, "stacker")
-    model_evaluation(stacker)
+    #stacker = gen_model(Stacker)
+    #cache_model(stacker, "stacker")
+    #model_evaluation(stacker)
 
-    #stacker = load_model("stacker")
-    #model_submission(stacker)
+    stacker = load_model("stacker")
+    stacker.set_weights(np.array([0.15, 0.75, 0.1, 0.00]))
+    #cache_model(stacker, "stacker")
+
+    model_evaluation(stacker)
+    model_submission(stacker)
