@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import os
 import cPickle
 import itertools
+import logging
 
 from sklearn import metrics, preprocessing, cross_validation
 from sklearn.decomposition import PCA
@@ -105,32 +106,36 @@ def weights_selection():
     stacker = load_model("stacker")
 
     # guess at some appropriate ranges for the weights
-    rf_weight_range = np.arange(0, 0.3, 0.05)
-    log_weight_range = np.arange(0.5, 1.01, 0.05)
+    rf_weight_range = np.arange(0.05, 0.201, 0.025)
+    log_weight_range = np.arange(0.65, 1.01, 0.025)
 
-    weights = []
+    weights = [w for w in itertools.product(rf_weight_range, log_weight_range, rf_weight_range)
+            if abs(sum(w) - 1.0) < 0.01]
+
     AUC_scores = []
     std_devs = []
 
-    for rf_w, log_w in itertools.product(rf_weight_range, log_weight_range):
-        weights.append(np.array([rf_w, log_w, 1.0 - (rf_w + log_w)]))
+    for i, w in enumerate(weights):
+        logging.info("Evaluating {0} of {1}".format(i+1, len(weights)))
+        stacker.set_weights(np.array(w))
 
-        stacker.set_weights(weights[-1])
         AUCs = model_evaluation(stacker)
         AUC_scores.append(AUCs.mean())
         std_devs.append(AUCs.std())
-
+        
     # save as csv
     df = pd.DataFrame({"weights": weights, "AUC_scores": AUC_scores, "std_devs":std_devs})
     df.to_csv("weights.csv")
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
 
     # stacker = gen_model(Stacker)
     # cache_model(stacker, "stacker")
 
     stacker = load_model("stacker")
     stacker.set_weights([0.15, 0.75, 0.1])
-
     model_evaluation(stacker)
+    # model_evaluation(stacker)

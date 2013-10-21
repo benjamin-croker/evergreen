@@ -1,4 +1,5 @@
 import numpy as np
+import logging
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
@@ -32,7 +33,7 @@ def TFIDF_transform(X_train, X_test, stemmer=None):
 
     # perform stemming if a stemmer is passed
     if stemmer is not None:
-        print("Stemming tokens")
+        logging.debug("Stemming tokens")
         if stemmer == "lancaster":
             stemmer = LancasterStemmer()
         elif stemmer == "snowball":
@@ -60,7 +61,7 @@ def select_important_TFIDF(X_train, X_test, y, n_tokens):
     log_cl = LogisticRegression(penalty='l2', dual=True, tol=0.0001,
                                 C=1, fit_intercept=True, intercept_scaling=1.0,
                                 class_weight=None, random_state=None)
-    print("Extracting important words")
+    logging.debug("Extracting important words")
     log_cl.fit(X_train, y)
 
     # get the most important words
