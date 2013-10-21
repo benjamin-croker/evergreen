@@ -9,7 +9,7 @@ from nltk.stem.snowball import EnglishStemmer
 from nltk.tokenize import RegexpTokenizer
 
 
-def TFIDF_transform(X_train, X_test, y_train, stemmer=None, n_important=None):
+def TFIDF_transform(X_train, X_test, stemmer=None):
     """ takes two arrays containing the training and test data and returns
         the TFIDF vectorised data.
 
@@ -32,6 +32,7 @@ def TFIDF_transform(X_train, X_test, y_train, stemmer=None, n_important=None):
 
     # perform stemming if a stemmer is passed
     if stemmer is not None:
+        print("Stemming tokens")
         if stemmer == "lancaster":
             stemmer = LancasterStemmer()
         elif stemmer == "snowball":
@@ -47,23 +48,26 @@ def TFIDF_transform(X_train, X_test, y_train, stemmer=None, n_important=None):
 
     X_all = tfv.fit_transform(X_all)
 
-    # work out the most important words
-    if n_important is not None:
-        log_cl = LogisticRegression(penalty='l2', dual=True, tol=0.0001,
-                                    C=1, fit_intercept=True, intercept_scaling=1.0,
-                                    class_weight=None, random_state=None)
-        print("Extracting important words")
-        log_cl.fit(X_all[:len(X_train)], y_train)
-
-        # get the most important words
-        coef = log_cl.coef_.ravel()
-        important_words_ind = np.argsort(np.abs(coef))[-n_important:]
-
-        print("important words are:")
-        print(np.array(tfv.get_feature_names())[important_words_ind])
-        X_all = X_all[:, important_words_ind].todense()
-
     return X_all[:len(X_train)], X_all[len(X_train):]
+
+
+def select_important_TFIDF(X_train, X_test, y, n_tokens):
+    """ takes a sparse TFIDF matrix, and selects the most important n_tokens
+        returns X as a dense matrix with n columns
+    """
+
+    # work out the most important words by training a logistic regression model
+    log_cl = LogisticRegression(penalty='l2', dual=True, tol=0.0001,
+                                C=1, fit_intercept=True, intercept_scaling=1.0,
+                                class_weight=None, random_state=None)
+    print("Extracting important words")
+    log_cl.fit(X_train, y)
+
+    # get the most important words
+    coef = log_cl.coef_.ravel()
+    important_words_ind = np.argsort(np.abs(coef))[-n_tokens:]
+
+    return X_train[:, important_words_ind].todense(), X_test[:, important_words_ind].todense()
 
 
 def onehot_transform(X_train, X_test, y_train):

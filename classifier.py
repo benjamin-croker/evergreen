@@ -7,7 +7,7 @@ import cPickle
 from sklearn import metrics, preprocessing, cross_validation
 from sklearn.decomposition import PCA
 
-from models import TFIDFLog, TFIDFRandForest, TFIDFNaiveBayes, CaterLog, Stacker
+from models import TFIDFLog, TFIDFRandForest, TFIDFNaiveBayes, Stacker
 
 # column categories and transforms
 id_cols = ["url", "urlid"]
@@ -105,6 +105,6 @@ if __name__ == "__main__":
     #cache_model(stacker, "stacker")
 
     stacker = load_model("stacker")
-    stacker.set_weights(np.array([0.15, 0.75, 0.1, 0.00]))
+    stacker.set_weights(np.array([0.15, 0.75, 0.1]))
     model_evaluation(stacker)
     model_submission(stacker)

@@ -15,69 +15,50 @@ class ClassifierModel(object):
     _X_cols = []
     _y_col = "label"
     _id_col = "urlid"
-
-    _X_train = None
-    _X_test = None
-    _y = None
-
     _model = None
 
+    X_train = None
+    X_test = None
+    y = None
+
     def __init__(self):
-        self._train_index_hash = None
+        self._fit_hash = None
         self._AUCs = None
         print("{}: Transforming data".format(str(self)))
 
     def __str__(self):
         return "Classifier"
 
-    def fit(self, train_indices=None):
-        """ fits the model, using a subset of the training data if given
+    def train_transform(self, X_train, X_test, y):
+        return X_train, X_test
+
+    def fit(self, X_train, y):
+        """ fits the model. If fit_hash is provided, it will check fit_hash against the last
+            given one, and only train the model if it's different
         """
-        X_train_subset = self._X_train
-        y_subset = self._y
+        print("Fitting {} model".format(str(self)))
+        self._model.fit(X_train, y)
 
-        if train_indices is not None:
-            X_train_subset = X_train_subset[train_indices]
-            y_subset = y_subset[train_indices]
-
-        # check the hash of the training indices, and only retrain if needed
-        if train_indices is not None:
-            hash_check = hash(tuple(train_indices))
-        else:
-            hash_check = hash(None)
-
-        if hash_check == self._train_index_hash:
-            print("{}: model already fitted".format(str(self)))
-
-        else:
-            if train_indices is not None:
-                self._train_index_hash = hash(tuple(train_indices))
-            else:
-                self._train_index_hash = hash(train_indices)
-            print("Fitting {} model".format(str(self)))
-            self._model.fit(X_train_subset, y_subset)
-
-    def predict(self, pred_data="test", pred_indices=None):
-        print("{}: Predicting for {} data".format(str(self), pred_data))
-        if pred_data == "test":
-            X_pred_subset = self._X_test
-        elif pred_data == "train":
-            X_pred_subset = self._X_train
-        else:
-            return None
-
-        if pred_indices is not None:
-            X_pred_subset = X_pred_subset[pred_indices]
-        return self._model.predict_proba(X_pred_subset)[:, 1]
+    def predict(self, X_predict, data_note="test"):
+        print("{}: Predicting for {} data".format(str(self), data_note))
+        return self._model.predict_proba(X_predict)[:, 1]
 
     def train_size(self):
-        return self._X_train.shape[0]
+        return self.X_train.shape[0]
 
     def eval(self, n_folds=10):
         print("{}: Evaluating {} fold CV score".format(str(self), n_folds))
-        AUCs = cross_validation.cross_val_score(self._model, self._X_train, self._y,
-                                                cv=n_folds, scoring="roc_auc")
-        self._AUCs = np.array(AUCs)
+        self.init_one_fold(n_folds)
+
+        # get an n fold CV split
+        kf = cross_validation.KFold(n=self._model.train_size(), n_folds=n_folds,
+                random_state=SEED, shuffle=True)
+
+        fold_n = 0
+        for train_indices, fold_eval_indices in kf:
+            self.one_fold_eval(train_indices, fold_eval_indices, fold_n)
+            fold_n += 1
+
         return self._AUCs
 
     def init_one_fold(self, n_folds):
@@ -87,12 +68,13 @@ class ClassifierModel(object):
     def one_fold_eval(self, train_indices, fold_eval_indices, fold_n):
         print("{}: Evaluating fold {} of {}".format(str(self), fold_n + 1, self._AUCs.size))
 
-        self.fit(train_indices=train_indices)
-        preds = self.predict("train", fold_eval_indices)
+        X_train, X_eval = self.train_transform(self.X_train[train_indices],
+                                               self.X_train[fold_eval_indices],
+                                               self.y[train_indices])
+        self.fit(X_train, self.y[train_indices])
+        preds = self.predict(X_eval, "train")
 
-        y_fold_test = self._y[fold_eval_indices]
-
-        fpr, tpr, thresholds = metrics.roc_curve(y_fold_test, preds)
+        fpr, tpr, thresholds = metrics.roc_curve(self.y[fold_eval_indices], preds)
         self._AUCs[fold_n] = metrics.auc(fpr, tpr)
         return preds
 
@@ -103,15 +85,15 @@ class ClassifierModel(object):
     def get_data(self):
         """ returns X_train, X_test, y
         """
-        return self._X_train, self._X_test, self._y
+        return self.X_train, self.X_test, self.y
 
     def add_features(self, X_train, X_test):
         """ stacks X_train and X_test with the existing training and test data
             X_train and X_test must have the same number of columns as the
             existing training and test data
         """
-        self._X_train = np.hstack((self._X_train, X_train))
-        self._X_test = np.hstack((self._X_test, X_test))
+        self.X_train = np.hstack((self.X_train, X_train))
+        self.X_test = np.hstack((self.X_test, X_test))
 
 
 class TFIDFLog(ClassifierModel):
@@ -124,14 +106,13 @@ class TFIDFLog(ClassifierModel):
                                          C=3, fit_intercept=True, intercept_scaling=1.0,
                                          class_weight=None, random_state=None)
 
-        self._y = trainDF[self._y_col]
         self._ids_train = trainDF[self._id_col]
         self._ids_test = testDF[self._id_col]
 
-        X_train = trainDF[self._X_cols]
-        X_test = testDF[self._X_cols]
-
-        self._X_train, self._X_test = tx.TFIDF_transform(X_train, X_test, self._y, "snowball")
+        self.y = trainDF[self._y_col]
+        self.X_train, self.X_test = tx.TFIDF_transform(trainDF[self._X_cols],
+                                                       testDF[self._X_cols],
+                                                       "snowball")
 
     def __str__(self):
         return "TFIDF Logistic Regression"
@@ -145,19 +126,19 @@ class TFIDFRandForest(ClassifierModel):
 
         self._model = RandomForestClassifier(n_estimators=100, min_samples_split=16)
 
-        self._y = trainDF[self._y_col]
         self._ids_train = trainDF[self._id_col]
         self._ids_test = testDF[self._id_col]
 
-        X_train = trainDF[self._X_cols]
-        X_test = testDF[self._X_cols]
-
-        self._X_train, self._X_test = tx.TFIDF_transform(X_train, X_test, self._y,
-                                                         stemmer="lancaster",
-                                                         n_important=200)
+        self.y = trainDF[self._y_col]
+        self.X_train, self.X_test = tx.TFIDF_transform(trainDF[self._X_cols],
+                                                       testDF[self._X_cols],
+                                                       "snowball")
 
     def __str__(self):
         return "TFIDF Random Forest"
+
+    def train_transform(self, X_train, X_test, y):
+        return tx.select_important_TFIDF(X_train, X_test, y, 200)
 
 
 class TFIDFNaiveBayes(ClassifierModel):
@@ -168,42 +149,19 @@ class TFIDFNaiveBayes(ClassifierModel):
 
         self._model = GaussianNB()
 
-        self._y = trainDF[self._y_col]
         self._ids_train = trainDF[self._id_col]
         self._ids_test = testDF[self._id_col]
 
-        X_train = trainDF[self._X_cols]
-        X_test = testDF[self._X_cols]
-
-        self._X_train, self._X_test = tx.TFIDF_transform(X_train, X_test, self._y,
-                                                         stemmer="snowball",
-                                                         n_important=200)
+        self.y = trainDF[self._y_col]
+        self.X_train, self.X_test = tx.TFIDF_transform(trainDF[self._X_cols],
+                                                       testDF[self._X_cols],
+                                                       "snowball")
 
     def __str__(self):
         return "TFIDF Naive Bayes"
 
-
-class CaterLog(ClassifierModel):
-    _X_cols = ["alchemy_category", "is_news", "news_front_page", "lengthyLinkDomain"]
-    _y_col = "label"
-
-    def __init__(self, trainDF, testDF):
-        ClassifierModel.__init__(self)
-
-        self._model = LogisticRegression(penalty='l2', dual=True, tol=0.0001,
-                                         C=1, fit_intercept=True, intercept_scaling=1.0,
-                                         class_weight=None, random_state=None)
-        self._y = trainDF[self._y_col]
-        self._ids_train = trainDF[self._id_col]
-        self._ids_test = testDF[self._id_col]
-
-        X_train = np.array(trainDF[self._X_cols])
-        X_test = np.array(testDF[self._X_cols])
-
-        self._X_train, self._X_test = tx.onehot_transform(X_train, X_test, self._y)
-
-    def __str__(self):
-        return "Categorical Logistic Regression"
+    def train_transform(self, X_train, X_test, y):
+        return tx.select_important_TFIDF(X_train, X_test, y, 200)
 
 
 class Mixer(object):
@@ -226,14 +184,14 @@ class Mixer(object):
 class Stacker(object):
     _y_col = "label"
     _id_col = "urlid"
-    _y = None
+    y = None
 
     _model = None
     _models = None
 
     def __init__(self, trainDF, testDF,
-                 model_classes=(TFIDFRandForest, TFIDFLog, TFIDFNaiveBayes, CaterLog),
-                 weights=(0.125, 0.7, 0.125, 0.05)):
+                 model_classes=(TFIDFRandForest, TFIDFLog, TFIDFNaiveBayes),
+                 weights=(0.125, 0.75, 0.125)):
         """ models is a list of models to stack using logistic regression
         """
         self._AUCs = None
@@ -241,61 +199,29 @@ class Stacker(object):
         self._models = [Model(trainDF, testDF) for Model in model_classes]
         self._model = Mixer(weights)
 
-        self._y = trainDF[self._y_col]
+        self.y = trainDF[self._y_col]
         self._ids_train = trainDF[self._id_col]
         self._ids_test = testDF[self._id_col]
 
     def __str__(self):
         return "Stacker"
 
-    def fit(self, train_indices=None):
-        """ fits the model, using a subset of the training data if given
+    def fit_predict(self):
+        """ fits the stacking model with all data
         """
-        print("{}: Fitting model".format(str(self)))
+        print("{}: Fitting model and predicting data".format(str(self)))
 
-        y_subset = self._y
-        if train_indices is not None:
-            y_subset = y_subset[train_indices]
-
-        # fit all the models
+        submodel_preds = []
         for model in self._models:
-            model.fit(train_indices)
+            X_train, X_test = model.train_transform(model.X_train, model.X_test, model.y)
+            model.fit(X_train, model.y)
+            submodel_preds.append(model.predict(X_test, "test"))
 
-        # get all the prediction scores
-        X_train_subset = np.hstack([
-            model.predict("train", train_indices)[np.newaxis].T for model in self._models
-        ])
-
-        # train the stacking model
-        self._model.fit(X_train_subset, y_subset)
-
-    def predict(self, pred_data="test", pred_indices=None):
-        print("Predicting {} data for {} model".format(pred_data, self.__str__()))
-
-        X_pred_subset = np.hstack([
-            model.predict(pred_data, pred_indices)[np.newaxis].T for model in self._models
-        ])
-
-        return self._model.predict(X_pred_subset)
+        X = np.hstack([p[np.newaxis].T for p in submodel_preds])
+        return self._model.predict(X)
 
     def eval(self, n_folds=10):
         print("{}: Evaluating {} fold CV score".format(str(self), n_folds))
-        self.init_one_fold(n_folds)
-
-        # get an n fold CV split
-        kf = cross_validation.KFold(n=self._models[0].train_size(), n_folds=n_folds, random_state=SEED, shuffle=True)
-
-        fold_n = 0
-        for train_indices, fold_eval_indices in kf:
-            self.one_fold_eval(train_indices, fold_eval_indices, fold_n)
-            # evaluate individual models to set the AUC scores
-            for model in self._models:
-                model.one_fold_eval(train_indices, fold_eval_indices, fold_n)
-            fold_n += 1
-
-        return self._AUCs
-
-    def init_one_fold(self, n_folds):
         print("{}: Set up model for one fold evals".format(str(self)))
         self._AUCs = np.zeros(n_folds)
 
@@ -303,18 +229,26 @@ class Stacker(object):
         for model in self._models:
             model.init_one_fold(n_folds)
 
-    def one_fold_eval(self, train_indices, fold_eval_indices, fold_n):
-        print("{}: Evaluating fold {} of {}".format(str(self), fold_n + 1, self._AUCs.size))
+        # get an n fold CV split
+        kf = cross_validation.KFold(n=self._models[0].train_size(),
+                                    n_folds=n_folds, random_state=SEED,
+                                    shuffle=True)
 
-        self.fit(train_indices=train_indices)
-        preds = self.predict("train", fold_eval_indices)
+        fold_n = 0
+        for train_indices, fold_eval_indices in kf:
+            # calculate the predictions for individual submodels
+            submodel_preds = [model.one_fold_eval(train_indices, fold_eval_indices, fold_n)
+                    for model in self._models]
+            submodel_preds = np.hstack([p[np.newaxis].T for p in submodel_preds])
+            # calculate the overall prediction
+            preds = self._model.predict(submodel_preds)
 
-        y_fold_test = self._y[fold_eval_indices]
+            fpr, tpr, thresholds = metrics.roc_curve(self.y[fold_eval_indices], preds)
+            self._AUCs[fold_n] = metrics.auc(fpr, tpr)
 
-        fpr, tpr, thresholds = metrics.roc_curve(y_fold_test, preds)
-        self._AUCs[fold_n] = metrics.auc(fpr, tpr)
+            fold_n += 1
 
-        return preds
+        return self._AUCs
 
     def last_eval(self):
         print("{} overall AUC: mean={}, std={}".format(str(self), self._AUCs.mean(), self._AUCs.std()))
@@ -327,8 +261,7 @@ class Stacker(object):
 
     def submission(self):
         print("{}: making a submission dataframe".format(str(self)))
-        self.fit()
-        preds = self.predict("test")
+        preds = self.fit_predict()
 
         submissionDF = pd.DataFrame(self._ids_test)
         submissionDF[self._y_col] = preds
