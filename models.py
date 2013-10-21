@@ -22,7 +22,6 @@ class ClassifierModel(object):
     y = None
 
     def __init__(self):
-        self._fit_hash = None
         self._AUCs = None
         print("{}: Transforming data".format(str(self)))
 

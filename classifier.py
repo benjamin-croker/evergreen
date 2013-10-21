@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 import cPickle
+import itertools
 
 from sklearn import metrics, preprocessing, cross_validation
 from sklearn.decomposition import PCA
@@ -92,19 +93,44 @@ def gen_model(ModelClass):
 
 def model_evaluation(model):
     model.eval()
-    model.last_eval()
+    return model.last_eval()
 
 
 def model_submission(model):
     submissionDF = model.submission()
     submissionDF.to_csv("submission.csv", index=False)
 
+
+def weights_selection():
+    stacker = load_model("stacker")
+
+    # guess at some appropriate ranges for the weights
+    rf_weight_range = np.arange(0, 0.3, 0.05)
+    log_weight_range = np.arange(0.5, 1.01, 0.05)
+
+    weights = []
+    AUC_scores = []
+    std_devs = []
+
+    for rf_w, log_w in itertools.product(rf_weight_range, log_weight_range):
+        weights.append(np.array([rf_w, log_w, 1.0 - (rf_w + log_w)]))
+
+        stacker.set_weights(weights[-1])
+        AUCs = model_evaluation(stacker)
+        AUC_scores.append(AUCs.mean())
+        std_devs.append(AUCs.std())
+
+    # save as csv
+    df = pd.DataFrame({"weights": weights, "AUC_scores": AUC_scores, "std_devs":std_devs})
+    df.to_csv("weights.csv")
+
+
 if __name__ == "__main__":
 
-    #stacker = gen_model(Stacker)
-    #cache_model(stacker, "stacker")
+    # stacker = gen_model(Stacker)
+    # cache_model(stacker, "stacker")
 
     stacker = load_model("stacker")
-    stacker.set_weights(np.array([0.15, 0.75, 0.1]))
+    stacker.set_weights([0.15, 0.75, 0.1])
+
     model_evaluation(stacker)
-    model_submission(stacker)
