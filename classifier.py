@@ -103,11 +103,8 @@ if __name__ == "__main__":
 
     #stacker = gen_model(Stacker)
     #cache_model(stacker, "stacker")
-    #model_evaluation(stacker)
 
     stacker = load_model("stacker")
     stacker.set_weights(np.array([0.15, 0.75, 0.1, 0.00]))
-    #cache_model(stacker, "stacker")
-
     model_evaluation(stacker)
     model_submission(stacker)

@@ -154,7 +154,7 @@ class TFIDFRandForest(ClassifierModel):
 
         self._X_train, self._X_test = tx.TFIDF_transform(X_train, X_test, self._y,
                                                          stemmer="lancaster",
-                                                         n_important=100)
+                                                         n_important=200)
 
     def __str__(self):
         return "TFIDF Random Forest"
@@ -177,7 +177,7 @@ class TFIDFNaiveBayes(ClassifierModel):
 
         self._X_train, self._X_test = tx.TFIDF_transform(X_train, X_test, self._y,
                                                          stemmer="snowball",
-                                                         n_important=100)
+                                                         n_important=200)
 
     def __str__(self):
         return "TFIDF Naive Bayes"
