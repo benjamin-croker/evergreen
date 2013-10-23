@@ -8,9 +8,10 @@ from sklearn import preprocessing
 from nltk.stem.lancaster import LancasterStemmer
 from nltk.stem.snowball import EnglishStemmer
 from nltk.tokenize import RegexpTokenizer
+from nltk.corpus import stopwords
 
 
-def TFIDF_transform(X_train, X_test, stemmer=None):
+def TFIDF_transform(X_train, X_test, stemmer=None, stop_words=None):
     """ takes two arrays containing the training and test data and returns
         the TFIDF vectorised data.
 
@@ -24,7 +25,7 @@ def TFIDF_transform(X_train, X_test, stemmer=None):
 
     tfv = TfidfVectorizer(min_df=3, max_features=None, strip_accents='unicode',
                           analyzer='word', token_pattern=r'\w{1,}', ngram_range=(1, 2), use_idf=1, smooth_idf=1,
-                          sublinear_tf=1)
+                          sublinear_tf=1, stop_words=stop_words)
 
     X_train = list(np.array(X_train)[:, 0])
     X_test = list(np.array(X_test)[:, 0])

@@ -32,7 +32,7 @@ replacements = {
 
 
 def load_data(fileName):
-    print("loading {}".format(fileName))
+    logging.debug("loading {}".format(fileName))
     df = pd.read_table(fileName)
     for k in replacements:
         df[k] = df[k].replace(*replacements[k])
@@ -82,7 +82,7 @@ def cache_model(model, file_name):
 
 def load_model(file_name):
     with open(os.path.join("cache", file_name)) as f:
-        print("Loading model {}".format(file_name))
+        logging.info("Loading model {}".format(file_name))
         return cPickle.load(f)
 
 
@@ -102,9 +102,7 @@ def model_submission(model):
     submissionDF.to_csv("submission.csv", index=False)
 
 
-def weights_selection():
-    stacker = load_model("stacker")
-
+def weights_selection(stacker):
     # guess at some appropriate ranges for the weights
     rf_weight_range = np.arange(0.05, 0.201, 0.025)
     log_weight_range = np.arange(0.65, 1.01, 0.025)
@@ -136,6 +134,7 @@ if __name__ == "__main__":
     # cache_model(stacker, "stacker")
 
     stacker = load_model("stacker")
+    
     stacker.set_weights([0.15, 0.75, 0.1])
     model_evaluation(stacker)
     # model_evaluation(stacker)

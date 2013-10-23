@@ -24,7 +24,7 @@ class ClassifierModel(object):
 
     def __init__(self):
         self._AUCs = None
-        logging.debug("{}: Transforming data".format(str(self)))
+        logging.info("{}: Building model".format(str(self)))
 
     def __str__(self):
         return "Classifier"
@@ -47,7 +47,7 @@ class ClassifierModel(object):
         return self.X_train.shape[0]
 
     def eval(self, n_folds=10):
-        logging.debug("{}: Evaluating {} fold CV score".format(str(self), n_folds))
+        logging.info("{}: Evaluating {} fold CV score".format(str(self), n_folds))
         self.init_one_fold(n_folds)
 
         # get an n fold CV split
@@ -62,7 +62,7 @@ class ClassifierModel(object):
         return self._AUCs
 
     def init_one_fold(self, n_folds):
-        logging.debug("{}: Set up model for one fold evals".format(str(self)))
+        logging.info("{}: Set up model for {} fold evals".format(str(self), n_folds))
         self._AUCs = np.zeros(n_folds)
 
     def one_fold_eval(self, train_indices, fold_eval_indices, fold_n):
@@ -221,7 +221,7 @@ class Stacker(object):
         return self._model.predict(X)
 
     def eval(self, n_folds=10):
-        logging.debug("{}: Evaluating {} fold CV score".format(str(self), n_folds))
+        logging.info("{}: Evaluating {} fold CV score".format(str(self), n_folds))
         logging.debug("{}: Set up model for one fold evals".format(str(self)))
         self._AUCs = np.zeros(n_folds)
 
