@@ -72,7 +72,7 @@ def select_important_TFIDF(X_train, X_test, y, n_tokens):
     return X_train[:, important_words_ind].todense(), X_test[:, important_words_ind].todense()
 
 
-def onehot_transform(X_train, X_test, y_train):
+def onehot_transform(X_train, X_test):
     """ Performs a label encoder transform on each feature of the data
     """
     oneHotEncoder = preprocessing.OneHotEncoder()

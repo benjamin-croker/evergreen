@@ -51,7 +51,7 @@ class ClassifierModel(object):
         self.init_one_fold(n_folds)
 
         # get an n fold CV split
-        kf = cross_validation.KFold(n=self._model.train_size(), n_folds=n_folds,
+        kf = cross_validation.KFold(n=self.train_size(), n_folds=n_folds,
                 random_state=SEED, shuffle=True)
 
         fold_n = 0
@@ -162,6 +162,27 @@ class TFIDFNaiveBayes(ClassifierModel):
 
     def train_transform(self, X_train, X_test, y):
         return tx.select_important_TFIDF(X_train, X_test, y, 200)
+
+
+class CategoricalLog(ClassifierModel):
+    _X_cols = ["alchemy_category", "is_news", "news_front_page", "lengthyLinkDomain"]
+
+    def __init__(self, trainDF, testDF):
+        ClassifierModel.__init__(self)
+ 
+        self._model = LogisticRegression(penalty='l2', dual=True, tol=0.0001,
+                                            C=1, fit_intercept=True, intercept_scaling=1.0,
+                                            class_weight=None, random_state=None)
+
+        self._ids_train = trainDF[self._id_col]
+        self._ids_test = testDF[self._id_col]
+        
+        self.y = trainDF[self._y_col]
+        self.X_train, self.X_test = tx.onehot_transform(trainDF[self._X_cols],
+                                                        testDF[self._X_cols])
+ 
+    def __str__(self):
+        return "Categorical Logistic Regression"
 
 
 class Mixer(object):
