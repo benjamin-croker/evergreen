@@ -9,7 +9,8 @@ import logging
 from sklearn import metrics, preprocessing, cross_validation
 from sklearn.decomposition import PCA
 
-from models import TFIDFLog, TFIDFRandForest, TFIDFNaiveBayes, CategoricalLog, Stacker
+from models import TFIDFLog, TFIDFRandForest, TFIDFNaiveBayes,\
+    TFIDFAdaBoost, TFIDFExtraTrees, CategoricalLog, Stacker
 
 # column categories and transforms
 id_cols = ["url", "urlid"]
@@ -107,7 +108,7 @@ def weights_selection(stacker):
     rf_weight_range = np.arange(0.05, 0.201, 0.025)
     log_weight_range = np.arange(0.65, 1.01, 0.025)
 
-    weights = [w for w in itertools.product(rf_weight_range, log_weight_range, rf_weight_range)
+    weights = [w for w in itertools.product(rf_weight_range, log_weight_range, rf_weight_range, rf_weight_range)
             if abs(sum(w) - 1.0) < 0.01]
 
     AUC_scores = []
@@ -132,13 +133,13 @@ if __name__ == "__main__":
 
     # stacker = gen_model(Stacker)
     # cache_model(stacker, "stacker")
-
     # stacker = load_model("stacker")
-    # stacker.set_weights([0.15, 0.75, 0.1])
-    # model_evaluation(stacker)
+    # weights_selection(stacker)
 
-    catlog = gen_model(CategoricalLog)
-    model_evaluation(catlog)
+    ada = gen_model(TFIDFAdaBoost)
+    model_evaluation(ada)
+
+   
 
 
 

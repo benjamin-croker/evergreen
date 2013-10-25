@@ -4,7 +4,7 @@ import logging
 
 from sklearn import metrics, cross_validation
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, AdaBoostClassifier
 from sklearn.naive_bayes import GaussianNB
 
 import transforms as tx
@@ -141,6 +141,52 @@ class TFIDFRandForest(ClassifierModel):
         return tx.select_important_TFIDF(X_train, X_test, y, 200)
 
 
+class TFIDFExtraTrees(ClassifierModel):
+    _X_cols = ["boilerplate"]
+
+    def __init__(self, trainDF, testDF):
+        ClassifierModel.__init__(self)
+
+        self._model = ExtraTreesClassifier(n_estimators=100, min_samples_split=16)
+
+        self._ids_train = trainDF[self._id_col]
+        self._ids_test = testDF[self._id_col]
+
+        self.y = trainDF[self._y_col]
+        self.X_train, self.X_test = tx.TFIDF_transform(trainDF[self._X_cols],
+                                                       testDF[self._X_cols],
+                                                       "snowball")
+
+    def __str__(self):
+        return "TFIDF Extra Trees"
+
+    def train_transform(self, X_train, X_test, y):
+        return tx.select_important_TFIDF(X_train, X_test, y, 200)
+
+
+class TFIDFAdaBoost(ClassifierModel):
+    _X_cols = ["boilerplate"]
+
+    def __init__(self, trainDF, testDF):
+        ClassifierModel.__init__(self)
+
+        self._model = AdaBoostClassifier(n_estimators=100)
+
+        self._ids_train = trainDF[self._id_col]
+        self._ids_test = testDF[self._id_col]
+
+        self.y = trainDF[self._y_col]
+        self.X_train, self.X_test = tx.TFIDF_transform(trainDF[self._X_cols],
+                                                       testDF[self._X_cols],
+                                                       "snowball")
+
+    def __str__(self):
+        return "TFIDF Ada Boost"
+
+    def train_transform(self, X_train, X_test, y):
+        return tx.select_important_TFIDF(X_train, X_test, y, 200)
+
+
 class TFIDFNaiveBayes(ClassifierModel):
     _X_cols = ["boilerplate"]
 
@@ -211,8 +257,8 @@ class Stacker(object):
     _models = None
 
     def __init__(self, trainDF, testDF,
-                 model_classes=(TFIDFRandForest, TFIDFLog, TFIDFNaiveBayes),
-                 weights=(0.125, 0.75, 0.125)):
+                 model_classes=(TFIDFRandForest, TFIDFLog, TFIDFNaiveBayes, CategoricalLog),
+                 weights=(0.12, 0.75, 0.12, 0.01)):
         """ models is a list of models to stack using logistic regression
         """
         self._AUCs = None

@@ -1,5 +1,6 @@
 import numpy as np
 import logging
+from itertools import combinations
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
@@ -70,6 +71,23 @@ def select_important_TFIDF(X_train, X_test, y, n_tokens):
     important_words_ind = np.argsort(np.abs(coef))[-n_tokens:]
 
     return X_train[:, important_words_ind].todense(), X_test[:, important_words_ind].todense()
+
+
+def feature_combine_transform(X_train, X_test, n_combine=2):
+    """ for use with categorical data
+        will create hashes of tuples of multiple features to create new features
+    """
+    X_train = np.array(X_train)
+    X_test = np.array(X_test)
+    _, n_features = np.array(X_train).shape
+    extra_train = []
+    extra_test = []
+
+    for inds in combinations(range(n_features), n_combine):
+        extra_train.append([hash(tuple(x)) for x in X_train[:,inds]])
+        extra_test.append([hash(tuple(x)) for x in X_test[:,inds]])
+
+    return np.hstack((X_train, np.array(extra_train).T)), np.hstack((X_test, np.array(extra_test).T))
 
 
 def onehot_transform(X_train, X_test):
