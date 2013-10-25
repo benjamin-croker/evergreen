@@ -131,14 +131,13 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 
-    # stacker = gen_model(Stacker)
-    # cache_model(stacker, "stacker")
-    # stacker = load_model("stacker")
+    #stacker = gen_model(Stacker)
+    #cache_model(stacker, "stacker")
+    stacker = load_model("stacker")
     # weights_selection(stacker)
 
-    ada = gen_model(TFIDFAdaBoost)
-    model_evaluation(ada)
-
+    stacker.set_weights([0.11, 0.65, 0.12, 0.12])
+    model_evaluation(stacker)
    
 
 

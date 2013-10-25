@@ -257,7 +257,7 @@ class Stacker(object):
     _models = None
 
     def __init__(self, trainDF, testDF,
-                 model_classes=(TFIDFRandForest, TFIDFLog, TFIDFNaiveBayes, CategoricalLog),
+                 model_classes=(TFIDFRandForest, TFIDFLog, TFIDFNaiveBayes, TFIDFExtraTrees),
                  weights=(0.12, 0.75, 0.12, 0.01)):
         """ models is a list of models to stack using logistic regression
         """
