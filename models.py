@@ -11,7 +11,6 @@ import transforms as tx
 
 SEED = 42
 
-
 class ClassifierModel(object):
     _X_cols = []
     _y_col = "label"
@@ -111,8 +110,7 @@ class TFIDFLog(ClassifierModel):
 
         self.y = trainDF[self._y_col]
         self.X_train, self.X_test = tx.TFIDF_transform(trainDF[self._X_cols],
-                                                       testDF[self._X_cols],
-                                                       "snowball")
+                                                       testDF[self._X_cols])
 
     def __str__(self):
         return "TFIDF Logistic Regression"
@@ -131,8 +129,7 @@ class TFIDFRandForest(ClassifierModel):
 
         self.y = trainDF[self._y_col]
         self.X_train, self.X_test = tx.TFIDF_transform(trainDF[self._X_cols],
-                                                       testDF[self._X_cols],
-                                                       "snowball")
+                                                       testDF[self._X_cols])
 
     def __str__(self):
         return "TFIDF Random Forest"
@@ -257,8 +254,8 @@ class Stacker(object):
     _models = None
 
     def __init__(self, trainDF, testDF,
-                 model_classes=(TFIDFRandForest, TFIDFLog, TFIDFNaiveBayes, TFIDFExtraTrees),
-                 weights=(0.12, 0.75, 0.12, 0.01)):
+                 model_classes=(TFIDFRandForest, TFIDFLog),
+                 weights=(0.10, 0.90)):
         """ models is a list of models to stack using logistic regression
         """
         self._AUCs = None

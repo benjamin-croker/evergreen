@@ -8,6 +8,7 @@ import logging
 
 from sklearn import metrics, preprocessing, cross_validation
 from sklearn.decomposition import PCA
+from sklearn.ensemble import AdaBoostClassifier
 
 from models import TFIDFLog, TFIDFRandForest, TFIDFNaiveBayes,\
     TFIDFAdaBoost, TFIDFExtraTrees, CategoricalLog, Stacker
@@ -131,13 +132,9 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 
-    #stacker = gen_model(Stacker)
-    #cache_model(stacker, "stacker")
-    stacker = load_model("stacker")
-    # weights_selection(stacker)
-
-    stacker.set_weights([0.11, 0.65, 0.12, 0.12])
-    model_evaluation(stacker)
+    stacker = gen_model(Stacker)
+    cache_model(stacker, "stacker")
+    model_submission(stacker)
    
 
 
